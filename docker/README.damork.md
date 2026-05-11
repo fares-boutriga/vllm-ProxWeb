@@ -8,12 +8,12 @@ This image packages the patched Damork vLLM fork and serves the Damork-branded Q
 docker build -f docker/Dockerfile.damork -t damork-vllm:0.1 .
 ```
 
-The Dockerfile uses `TORCH_BACKEND=cu124` by default because RunPod hosts may expose CUDA 12.4 drivers. If your target host supports a newer CUDA backend, override it:
+The Dockerfile uses `TORCH_BACKEND=cu130` by default because this vLLM branch pins `torch==2.11.0`, and the CUDA lockfile for this branch uses `torch==2.11.0+cu130`. The target RunPod host must have a new enough NVIDIA driver for CUDA 13.x. Check inside the pod with `nvidia-smi`.
 
 ```bash
 docker build \
   -f docker/Dockerfile.damork \
-  --build-arg TORCH_BACKEND=cu128 \
+  --build-arg TORCH_BACKEND=cu130 \
   -t damork-vllm:0.1 .
 ```
 
