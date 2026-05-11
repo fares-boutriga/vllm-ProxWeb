@@ -8,6 +8,15 @@ This image packages the patched Damork vLLM fork and serves the Damork-branded Q
 docker build -f docker/Dockerfile.damork -t damork-vllm:0.1 .
 ```
 
+The Dockerfile uses `TORCH_BACKEND=cu124` by default because RunPod hosts may expose CUDA 12.4 drivers. If your target host supports a newer CUDA backend, override it:
+
+```bash
+docker build \
+  -f docker/Dockerfile.damork \
+  --build-arg TORCH_BACKEND=cu128 \
+  -t damork-vllm:0.1 .
+```
+
 The default base image matches the RunPod PyTorch CUDA image used during testing:
 
 ```text

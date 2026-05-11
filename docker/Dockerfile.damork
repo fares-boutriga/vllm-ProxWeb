@@ -12,9 +12,12 @@
 ARG BASE_IMAGE=runpod/pytorch:1.0.2-cu1281-torch280-ubuntu2404
 FROM ${BASE_IMAGE}
 
+ARG TORCH_BACKEND=cu124
+
 ENV DEBIAN_FRONTEND=noninteractive \
     PYTHONUNBUFFERED=1 \
     PIP_DISABLE_PIP_VERSION_CHECK=1 \
+    UV_TORCH_BACKEND=${TORCH_BACKEND} \
     VLLM_USE_PRECOMPILED=1 \
     VLLM_USE_FLASHINFER_SAMPLER=0 \
     VLLM_WORKER_MULTIPROC_METHOD=spawn \
@@ -44,7 +47,8 @@ RUN python3 -m venv /opt/damork-vllm \
 
 COPY . .
 
-RUN uv pip install --editable . --torch-backend=auto \
+RUN uv pip install --editable . --torch-backend="${TORCH_BACKEND}" \
+    && python -c "import torch; print('torch', torch.__version__, 'cuda', torch.version.cuda); assert torch.version.cuda is not None, 'CPU-only torch was installed'" \
     && rm -rf "${UV_CACHE_DIR}"
 
 COPY docker/damork-entrypoint.sh /usr/local/bin/damork-entrypoint
