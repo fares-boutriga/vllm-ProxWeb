@@ -9,26 +9,20 @@
 # Run:
 #   docker run --gpus all --ipc=host --shm-size=8g -p 8000:8000 damork-vllm:0.1
 
-ARG BASE_IMAGE=runpod/pytorch:1.0.2-cu1281-torch280-ubuntu2404
+ARG BASE_IMAGE=vllm/vllm-openai:latest
 FROM ${BASE_IMAGE}
-
-ARG TORCH_BACKEND=cu130
 
 ENV DEBIAN_FRONTEND=noninteractive \
     PYTHONUNBUFFERED=1 \
     PIP_DISABLE_PIP_VERSION_CHECK=1 \
-    UV_TORCH_BACKEND=${TORCH_BACKEND} \
-    VLLM_USE_PRECOMPILED=1 \
     VLLM_USE_FLASHINFER_SAMPLER=0 \
     VLLM_WORKER_MULTIPROC_METHOD=spawn \
-    UV_CACHE_DIR=/tmp/uv-cache \
     DAMORK_MODEL=PWLabs/Qwen3.5-0.8B \
     DAMORK_SERVED_MODEL_NAME=damork \
     DAMORK_HOST=0.0.0.0 \
     DAMORK_PORT=8000 \
     DAMORK_MAX_MODEL_LEN=2048 \
-    DAMORK_GPU_MEMORY_UTILIZATION=0.85 \
-    PATH=/opt/damork-vllm/bin:${PATH}
+    DAMORK_GPU_MEMORY_UTILIZATION=0.85
 
 WORKDIR /workspace/vllm-ProxWeb
 
@@ -39,17 +33,13 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
         git \
         libgl1 \
         libglib2.0-0 \
-        python3-venv \
     && rm -rf /var/lib/apt/lists/*
 
-RUN python3 -m venv /opt/damork-vllm \
-    && python -m pip install --upgrade pip uv
+COPY docker/install-damork-patch.py /tmp/damork-patch/install-damork-patch.py
+COPY vllm/transformers_utils/processors/damork_vl.py /tmp/damork-patch/vllm/transformers_utils/processors/damork_vl.py
 
-COPY . .
-
-RUN uv pip install --editable . --torch-backend="${TORCH_BACKEND}" \
-    && python -c "import torch; print('torch', torch.__version__, 'cuda', torch.version.cuda); assert torch.version.cuda is not None, 'CPU-only torch was installed'" \
-    && rm -rf "${UV_CACHE_DIR}"
+RUN python3 /tmp/damork-patch/install-damork-patch.py \
+    && rm -rf /tmp/damork-patch
 
 COPY docker/damork-entrypoint.sh /usr/local/bin/damork-entrypoint
 RUN sed -i 's/\r$//' /usr/local/bin/damork-entrypoint \

@@ -1,6 +1,6 @@
 # Damork vLLM Docker Image
 
-This image packages the patched Damork vLLM fork and serves the Damork-branded Qwen3.5-compatible model through the OpenAI-compatible API.
+This image starts from the official `vllm/vllm-openai:latest` runtime and applies the small Damork alias patch on top. That keeps the CUDA/PyTorch stack aligned with the vLLM image that already works on RunPod, while adding support for Damork-branded config and processor names.
 
 ## Build
 
@@ -8,27 +8,18 @@ This image packages the patched Damork vLLM fork and serves the Damork-branded Q
 docker build -f docker/Dockerfile.damork -t damork-vllm:0.1 .
 ```
 
-The Dockerfile uses `TORCH_BACKEND=cu130` by default because this vLLM branch pins `torch==2.11.0`, and the CUDA lockfile for this branch uses `torch==2.11.0+cu130`. The target RunPod host must have a new enough NVIDIA driver for CUDA 13.x. Check inside the pod with `nvidia-smi`.
-
-```bash
-docker build \
-  -f docker/Dockerfile.damork \
-  --build-arg TORCH_BACKEND=cu130 \
-  -t damork-vllm:0.1 .
-```
-
-The default base image matches the RunPod PyTorch CUDA image used during testing:
+The default base image is:
 
 ```text
-runpod/pytorch:1.0.2-cu1281-torch280-ubuntu2404
+vllm/vllm-openai:latest
 ```
 
-To use a different CUDA/PyTorch base:
+To pin to a specific official vLLM image:
 
 ```bash
 docker build \
   -f docker/Dockerfile.damork \
-  --build-arg BASE_IMAGE=runpod/pytorch:1.0.2-cu1281-torch280-ubuntu2404 \
+  --build-arg BASE_IMAGE=vllm/vllm-openai:<tag> \
   -t damork-vllm:0.1 .
 ```
 
@@ -88,6 +79,8 @@ docker run --gpus all --ipc=host --shm-size=8g \
   --enforce-eager
 ```
 
+If arguments are passed, the entrypoint preserves them and fills in missing defaults such as `--served-model-name damork`, `--host 0.0.0.0`, and `--enforce-eager`.
+
 ## Test
 
 ```bash
@@ -131,3 +124,5 @@ docker push ghcr.io/fares-boutriga/damork-vllm:0.1
 ```
 
 `VLLM_USE_FLASHINFER_SAMPLER=0` is set by default because this was the stable configuration during RunPod testing. Remove or override it only after validating FlashInfer in the target image.
+
+Avoid rebuilding vLLM from source inside this image unless you also control the target NVIDIA driver version. The previous `cu130` build failed on RunPod hosts reporting CUDA driver capability `12.4`.
